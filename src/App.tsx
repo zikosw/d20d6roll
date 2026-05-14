@@ -20,6 +20,7 @@ export default function App() {
   const [playerCount, setPlayerCount] = useState<number | null>(null);
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [globalRollTrigger, setGlobalRollTrigger] = useState(0);
+  const [playerRollTrigger, setPlayerRollTrigger] = useState<number | null>(null);
 
   const [diceBox, setDiceBox] = useState<any>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -78,9 +79,11 @@ export default function App() {
         if (r.sides === 20) newResults[truePlayerId].d20 = r.value;
         if (r.sides === 6) newResults[truePlayerId].d6 = r.value;
       });
-      setResults(newResults);
+      // If we rolled for a single player, preserve other results
+      setResults(prev => playerRollTrigger !== null ? { ...prev, ...newResults } : newResults);
+      setPlayerRollTrigger(null);
     };
-  }, [diceBox]);
+  }, [diceBox, playerRollTrigger]);
 
   useEffect(() => {
     if (globalRollTrigger > 0 && diceBox) {
@@ -106,6 +109,29 @@ export default function App() {
     }
   }, [globalRollTrigger, diceBox, players]);
 
+  useEffect(() => {
+    if (playerRollTrigger !== null && diceBox) {
+      const index = playerRollTrigger - 1;
+      const themeColor = THEMES[playerRollTrigger] ? THEMES[playerRollTrigger].themeColor : THEMES[0].themeColor;
+      
+      const notations = {
+        qty: 1, 
+        sides: 20,
+        theme: 'default',
+        themeColor
+      };
+
+      const notationsD6 = {
+        qty: 1, 
+        sides: 6,
+        theme: 'default',
+        themeColor
+      };
+
+      diceBox.roll([notations, notationsD6]);
+    }
+  }, [playerRollTrigger, diceBox]);
+
   const startGame = (count: number) => {
     const initialPlayers: PlayerState[] = Array.from({ length: count }).map((_, i) => ({
       id: i + 1,
@@ -118,6 +144,10 @@ export default function App() {
 
   const rollAll = () => {
     setGlobalRollTrigger(prev => prev + 1);
+  };
+
+  const rollPlayer = (playerId: number) => {
+    setPlayerRollTrigger(playerId);
   };
 
   useEffect(() => {
@@ -148,6 +178,7 @@ export default function App() {
             players={players} 
             results={results}
             onRollAll={rollAll}
+            onRollPlayer={rollPlayer}
             isInitializing={isInitializing}
             onReset={() => {
               setPlayerCount(null);
@@ -190,12 +221,14 @@ function DashboardView({
   results,
   isInitializing,
   onRollAll,
+  onRollPlayer,
   onReset
 }: { 
   players: PlayerState[]; 
   results: { [playerId: number]: { d20?: number; d6?: number } };
   isInitializing: boolean;
   onRollAll: () => void;
+  onRollPlayer: (playerId: number) => void;
   onReset: () => void;
 }) {
   return (
@@ -225,14 +258,22 @@ function DashboardView({
              const res = results[index + 1] || {};
              
              return (
-               <div key={p.id} className="flex flex-row items-stretch bg-white/5 border-2 border-white/10 hover:border-white/30 transition-colors">
+               <div key={p.id} className="flex flex-row items-stretch bg-white/5 border-2 border-white/10 hover:border-white/30 transition-colors group/player">
                  <div 
                     className="w-3 flex-shrink-0"
                     style={{ backgroundColor: theme.themeColor }}
                  />
                  <div className="flex flex-col flex-1 p-2 sm:p-2.5 overflow-hidden">
-                   <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-0.5 truncate">
-                     Player {p.id}
+                   <div className="flex justify-between items-center mb-0.5">
+                     <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white/50 truncate">
+                       Player {p.id}
+                     </div>
+                     <button
+                       onClick={() => onRollPlayer(p.id)}
+                       className="bg-white/10 hover:bg-white text-white hover:text-[#141414] transition-colors text-[8px] sm:text-[9px] font-black uppercase tracking-[0.1em] px-2 py-1"
+                     >
+                       Roll
+                     </button>
                    </div>
                    <div className="text-lg sm:text-xl leading-none font-black text-white mix-blend-screen truncate">
                      {res.d20 ? `${res.d20} & ${res.d6}` : '—'}
