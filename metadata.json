@@ -1,0 +1,6 @@
+{
+  "name": "DM Command Center",
+  "description": "A dynamic grid-based dashboard for DMs to manage and view multi-player dice rolls simultaneously.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
